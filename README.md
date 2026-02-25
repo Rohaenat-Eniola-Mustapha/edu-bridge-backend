@@ -67,142 +67,234 @@ All endpoints are prefixed with /api. Example: https://edu-bridge-backend-z68e.o
 #### Sign Up
 Create a new user account. The user is created in Supabase Auth and automatically added to the users table via a database trigger.
 
-URL: /api/auth/signup
+* URL: /api/auth/signup
 
-Method: POST
+* Method: POST
 
-Headers: Content-Type: application/json
+* Headers: Content-Type: application/json
 
-Body:
+* Body:
+   
+   ```json
+   {
+     "email": "teacher@example.com",
+     "password": "securepassword",
+     "name": "Amina Teacher",
+     "role": "teacher",           // teacher, student, admin, ngo
+     "language": "ha"              // en, ha, yo, ig
+   }
+   ```
 
-```json
-{
-  "email": "teacher@example.com",
-  "password": "securepassword",
-  "name": "Amina Teacher",
-  "role": "teacher",           // teacher, student, admin, ngo
-  "language": "ha"              // en, ha, yo, ig
-}
-```
+* Success Response: 201 Created
 
-Success Response: 201 Created
-
-```json
-{
-  "user": { ... },
-  "session": null
-}
-```
+   ```json
+   {
+     "user": { ... },
+     "session": null
+   }
+   ```
 
 ### Login
 Authenticate a user and receive a JWT token.
 
-URL: /api/auth/login
+* URL: /api/auth/login
 
-Method: POST
+* Method: POST
 
-Headers: Content-Type: application/json
+* Headers: Content-Type: application/json
 
-Body:
+* Body:
 
-```json
-{
-  "email": "teacher@example.com",
-  "password": "securepassword"
-}
-```
+   ```json
+   {
+     "email": "teacher@example.com",
+     "password": "securepassword"
+   }
+   ```
 
-Success Response: 200 OK
+* Success Response: 200 OK
 
-```json
-{
-  "token": "eyJhbGciOiJIUzI1NiIs...",
-  "user": { ... }
-}
-```
+   ```json
+   {
+     "token": "eyJhbGciOiJIUzI1NiIs...",
+     "user": { ... }
+   }
+   ```
 
 ### Get Current User
 Retrieve the authenticated user's details from the users table.
 
-URL: /api/auth/me
+* URL: /api/auth/me
 
-Method: GET
+* Method: GET
 
-Headers: Authorization: Bearer <token>
+* Headers: Authorization: Bearer <token>
 
-Success Response: 200 OK with user object.
+* Success Response: 200 OK with user object.
 
 ## Lessons
 List Lessons
 Returns all lessons, optionally filtered by subject and language.
 
-URL: /api/lessons
+* URL: /api/lessons
 
-Method: GET
+* Method: GET
 
-Headers: Authorization: Bearer <token>
+* Headers: Authorization: Bearer <token>
 
-Query Parameters:
+* Query Parameters:
 
-lang – language code (en, ha, yo, ig). Default en.
+   * lang – language code (en, ha, yo, ig). Default en.
+   
+   * subject – filter by subject (e.g., Mathematics).
 
-subject – filter by subject (e.g., Mathematics).
-
-Success Response: 200 OK with array of lesson objects. Multilingual fields are returned in the requested language.
+* Success Response: 200 OK with array of lesson objects. Multilingual fields are returned in the requested language.
 
 ### Get Single Lesson
 Retrieves a specific lesson by ID.
 
-URL: /api/lessons/:id
+* URL: /api/lessons/:id
 
-Method: GET
+* Method: GET
 
-Headers: Authorization: Bearer <token>
+* Headers: Authorization: Bearer <token>
 
-Query Parameters: lang (optional)
+* Query Parameters: lang (optional)
 
-Success Response: 200 OK with lesson object.
+* Success Response: 200 OK with lesson object.
 
 ### Assign Lesson (Teacher only)
 Assigns a lesson to a class.
 
-URL: /api/lessons/assign
+* URL: /api/lessons/assign
 
-Method: POST
+* Method: POST
 
-Headers: Authorization: Bearer <token>, Content-Type: application/json
+* Headers: Authorization: Bearer <token>, Content-Type: application/json
 
-Body:
+* Body:
+   
+   ```json
+   {
+     "class_id": "uuid",
+     "lesson_id": "uuid"
+   }
+   ```
 
-```json
-{
-  "class_id": "uuid",
-  "lesson_id": "uuid"
-}
-```
-
-Success Response: 201 Created with assignment object.
+* Success Response: 201 Created with assignment object.
 
 ### Get Student Lessons
 Returns lessons assigned to the authenticated student (requires proper student‑class mapping).
 
-URL: /api/lessons/student
+* URL: /api/lessons/student
 
-Method: GET
+* Method: GET
 
-Headers: Authorization: Bearer <token>
+* Headers: Authorization: Bearer <token>
 
-Success Response: 200 OK with array of lessons.
+ *Success Response: 200 OK with array of lessons.
 
 ## Progress Tracking
 Record Progress
 Create or update a student's progress on a lesson.
 
-URL: /api/progress/complete
+* URL: /api/progress/complete
 
-Method: POST
+* Method: POST
 
-Headers: Authorization: Bearer <token>, Content-Type: application/json
+* Headers: Authorization: Bearer <token>, Content-Type: application/json
 
-Body:
+* Body:
+  ```json
+   {
+     "lesson_id": "uuid",
+     "progress_percent": 100,
+     "completed_at": "2026-02-24T12:00:00Z"
+   }
+  ```
 
+* Success Response: 200 OK with the updated progress record.
+
+### Teacher Dashboard (Class Progress)
+Get aggregated progress for a class (teacher only).
+
+* URL: /api/progress/teacher/:classId
+
+* Method: GET
+
+* Headers: Authorization: Bearer <token>
+
+* Success Response: 200 OK
+  ```json
+  {
+     "class_name": "JSS 1A",
+     "total_students": 45,
+     "completion_rate": 78.2,
+     "students_at_risk": [ ... ]
+   }
+  ```
+
+## Synchronisation
+
+### Sync Endpoint
+Bidirectional sync for offline clients. Clients send local changes and receive server updates since last sync.
+
+* URL: /api/sync
+
+* Method: POST
+
+* Headers: Authorization: Bearer <token>, Content-Type: application/json
+
+* Body:
+  ```json
+   {
+     "last_sync": "2026-02-23T00:00:00Z",
+     "changes": [
+       {
+         "entity": "progress",
+         "id": "local-uuid",
+         "data": { "lesson_id": "...", "progress_percent": 100 },
+         "timestamp": "2026-02-24T09:00:00Z"
+       }
+     ]
+   }
+  ```
+
+* Success Response: 200 OK
+  ```json
+   {
+     "sync_token": "2026-02-24T12:00:00Z",
+     "changes": [ ... ],
+     "conflicts": []
+   }
+  ```
+
+## Database Schema
+The main tables are:
+* users – students, teachers, admins, NGOs
+
+* schools
+
+* classes
+
+* lessons (multilingual JSONB fields)
+
+* assignments
+
+* progress
+
+##  Environment Variables
+
+| Variable | Description |
+|---|---|
+| PORT | Port the server listens on (Render sets this automatically) |
+| SUPABASE_URL | Your Supabase project URL |
+| SUPABASE_ANON_KEY | Public anon key (for client‑side, not heavily used server‑side) |
+| SUPABASE_SERVICE_KEY | Service role key (keep secret, used for admin operations) |
+| JWT_SECRET | Optional – used if implementing custom JWT |
+
+## License
+
+This project is for educational purposes as part of the Capstone Project Team 17.
+
+## Contributors
