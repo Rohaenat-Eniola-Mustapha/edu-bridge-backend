@@ -6,21 +6,29 @@ const supabase = require('../db/supabase');
 
 // Sign Up
 router.post('/signup', async (req, res) => {
-  const { email, password, name, role, language } = req.body;
+  const { email, password, name, role, language, phone } = req.body;
+
+  // Basic validation
+  if (!email || !password || !name || !role){
+    return
+    res.status(400).json({error: 'Missing required fields'});
+  }
 
   // Use Supabase Auth to create user
   const { data, error } = await supabase.auth.signUp({
     email,
     password,
     options: {
-      data: { name, role, language }
+      data: { name, role, language, phone, status: 'active' }
     }
   });
 
   if (error) return res.status(400).json({ error: error.message });
 
   // User will be inserted into public.users by trigger
-  res.status(201).json({ user: data.user, session: data.session });
+  res.status(201).json({
+    message: 'User created successfully. Please check email for confirmation.', user: data.user, session: data.session
+  });
 });
 
 // Login

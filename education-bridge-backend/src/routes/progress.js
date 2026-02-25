@@ -5,7 +5,7 @@ const router = express.Router();
 
 // POST /api/progress/complete – record lesson completion
 router.post('/complete', authenticate, async (req, res) => {
-  const { lesson_id, progress_percent, completed_at } = req.body;
+  const { lesson_id, progress_percent, completed_at, started_at } = req.body;
   const student_id = req.user.id;
 
   const status = progress_percent === 100 ? 'completed' : 'started';
@@ -19,6 +19,7 @@ router.post('/complete', authenticate, async (req, res) => {
       status,
       progress_percent,
       completed_at: status === 'completed' ? completed_at || new Date() : null,
+      started_at,
       last_accessed: new Date()
     }, { onConflict: 'student_id, lesson_id' })
     .select();
@@ -36,7 +37,7 @@ router.get('/teacher/:classId', authenticate, async (req, res) => {
   // Verify teacher owns this class
   const { data: classData, error: classError } = await supabase
     .from('classes')
-    .select('teacher_id')
+    .select('teacher_id, name')
     .eq('id', classId)
     .single();
 
@@ -45,8 +46,6 @@ router.get('/teacher/:classId', authenticate, async (req, res) => {
   }
 
   // Get all students in this class (need student_classes table)
-  // For simplicity, we'll assume students are linked via a class_id column in users.
-  // Add class_id to users table if not already.
 
   const { data: students, error: studentsError } = await supabase
     .from('users')
