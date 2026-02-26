@@ -9,9 +9,8 @@ router.post('/signup', async (req, res) => {
   const { email, password, name, role, language, phone } = req.body;
 
   // Basic validation
-  if (!email || !password || !name || !role){
-    return
-    res.status(400).json({error: 'Missing required fields'});
+  if (!email || !password || !name || !role) {
+      return res.status(400).json({ error: 'Missing required fields' });
   }
 
   // Use Supabase Auth to create user

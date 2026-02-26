@@ -57,7 +57,7 @@ router.post('/assign', authenticate, async (req, res) => {
   const { class_id, lesson_id } = req.body;
   const teacher_id = req.user.id;
 
-  // Check if user is a teacher (you could add role check)
+  // Check if user is a teacher
   const { data: user, error: userError } = await supabase
     .from('users')
     .select('role')
@@ -68,6 +68,7 @@ router.post('/assign', authenticate, async (req, res) => {
     return res.status(403).json({ error: 'Only teachers can assign lessons' });
   }
 
+  // Insert the assignment
   const { data, error } = await supabase
     .from('assignments')
     .insert([{ class_id, lesson_id, assigned_by: teacher_id }])
@@ -82,28 +83,47 @@ router.post('/assign', authenticate, async (req, res) => {
 router.get('/student', authenticate, async (req, res) => {
   const student_id = req.user.id;
 
-  // Get student's class(es) – assuming one class per student for simplicity
+  // Get student's class_id
   const { data: student, error: studentError } = await supabase
     .from('users')
-    .select('school_id')
+    .select('class_id')
     .eq('id', student_id)
     .single();
 
   if (studentError) return res.status(500).json({ error: studentError.message });
 
-  // Get classes in that school? Or a separate table student_classes? For MVP, assume classes have teacher and we need a student-class mapping.
-  // This is simplified: we'll get assignments for the class the student belongs to. You'd need a student_classes table.
-  // For now, let's assume the student's class is stored in users table (add class_id column to users).
-  // I'll add a class_id column to users later. For this example, we'll skip and just return all lessons.
-  // Better: add a student_classes junction table. But let's keep simple.
+  if (!student.class_id) {
+    return res.json([]); // no class assigned yet
+  }
 
-  // For the purpose of this guide, we'll return lessons from assignments where the class includes this student.
-  // We'll need a student_classes table. I'll add SQL for that later.
+  // Get assignments for that class
+  const { data: assignments, error: assignError } = await supabase
+    .from('assignments')
+    .select('lesson_id')
+    .eq('class_id', student.class_id);
 
-  // Placeholder: return all lessons (not realistic)
-  const { data, error } = await supabase.from('lessons').select('*');
-  if (error) return res.status(500).json({ error: error.message });
-  res.json(data);
+  if (assignError) return res.status(500).json({ error: assignError.message });
+
+  const lessonIds = assignments.map(a => a.lesson_id);
+
+  // Fetch those lessons
+  const { data: lessons, error: lessonsError } = await supabase
+    .from('lessons')
+    .select('*')
+    .in('id', lessonIds);
+
+  if (lessonsError) return res.status(500).json({ error: lessonsError.message });
+
+  // Transform multilingual fields (optional)
+  const lang = req.query.lang || 'en';
+  const transformed = lessons.map(lesson => ({
+    ...lesson,
+    title: lesson.title[lang] || lesson.title.en,
+    description: lesson.description?.[lang] || lesson.description?.en,
+    content_url: lesson.content_url?.[lang] || lesson.content_url?.en
+  }));
+
+  res.json(transformed);
 });
 
 module.exports = router;
