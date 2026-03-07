@@ -79,6 +79,32 @@ router.post('/assign', authenticate, async (req, res) => {
   res.status(201).json(data[0]);
 });
 
+// POST /api/lessons – create a new lesson
+router.post('/', authenticate, async (req, res) => {
+  const { title, description, subject, grade_level, content_type, difficulty, content_url } = req.body;
+
+  // Validate required fields
+  if (!title || !subject || !grade_level) {
+    return res.status(400).json({ error: 'Missing required fields: title, subject, grade_level' });
+  }
+
+  const { data, error } = await supabase
+    .from('lessons')
+    .insert([{
+      title,                // should be JSONB: { "en": "..." }
+      description: description || {},
+      subject,
+      grade_level,
+      content_type: content_type || 'text',
+      difficulty: difficulty || 1,
+      content_url: content_url || {}
+    }])
+    .select();
+
+  if (error) return res.status(500).json({ error: error.message });
+  res.status(201).json(data[0]);
+});
+
 // GET /api/lessons/student – get lessons for the logged-in student
 router.get('/student', authenticate, async (req, res) => {
   const student_id = req.user.id;
